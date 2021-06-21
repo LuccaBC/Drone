@@ -5,6 +5,7 @@ from control.matlab import *
 import control as ctrl
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.signal as sig
 
 #Enviroment input
 #São Carlos -----------
@@ -79,7 +80,6 @@ print("Constante:", constant_sis)
 cont_ss = ss(Ac,Bc,Cc,Dc)
 print("Sistema Continuo:\n", cont_ss)
 
-
 # Discretização
 
 disc_ss = c2d(cont_ss, Ts)
@@ -88,7 +88,7 @@ print("Sistema Discreto:\n", disc_ss)
 # Teste
 
 yout, T = step(cont_ss)
-plt.step(T, yout)
+plt.step(T, yout, where='post')
 plt.show()
 
 # Vel
@@ -96,7 +96,7 @@ C_vel = [0,1]
 cont_ss_vel = ss(Ac,Bc,C_vel,Dc)
 
 yout_vel, T_vel = step(cont_ss_vel)
-plt.step(T_vel, yout_vel)
+plt.step(T_vel, yout_vel, where='post')
 plt.show()
 
 # Controlador
@@ -121,25 +121,60 @@ p_d2 = np.exp(p_c2*Ts)
 print("polos Discretos:\n", np.round(p_d1,4), "e", np.round(p_d2,4))
 
 # Valor inicial - gravidade medida pela IMU ?
-X0 = [[0], [g]]
+X0 = [[1], [0]]
 
-init_state = X0
+#termo de "ruido" do resto da expansão de taylor - ficou bem ruim
+#X0 = [[0], [g + 6*((2*ct_br*air_density*A*(w0**2)*(radius**2)/m)+ct_br*air_density*A*(w0**2)*(radius**2)/m)]]
+
 mT = np.eye(2)
+new_ss, mT = ctrl.reachable_form(disc_ss)
+init_state = np.matmul(mT, X0)
 # colocando os polos
-K = place(disc_ss.A, disc_ss.B, [p_d1, p_d2]) # Controlabilidade forma canonica
-PHI = disc_ss.A - np.matmul(disc_ss.B,K)
+K = place(new_ss.A, new_ss.B, [p_d1, p_d2]) # Controlabilidade forma canonica
+PHI = new_ss.A - np.matmul(new_ss.B,K)
 print('K=', np.round(K, 2))
 
 #Parte nova
 final_time = 10
 offset = 0
 print('Matriz nova controle \n', PHI)
-cl_ss = ss(PHI, [[0], [0]], disc_ss.C, disc_ss.D, Ts)
+cl_ss = ss(PHI, [[0], [0]], new_ss.C, new_ss.D, Ts)
 print('A=', np.round(cl_ss.A, 2))
 time_d = linspace(0, int(final_time/Ts)*Ts, int(final_time/Ts)+1)
 yout, tout, xout = initial(cl_ss, time_d, init_state, return_x=True)
 xx = np.matmul(np.linalg.inv(mT), xout.T)
-print('xx=\n', xx)
+#print('xx=\n', xx)
 plt.step(tout, (xx[0, :].T)+offset, 'r', where='post', label='modal')
 plt.step(tout, (xx[1, :].T)+offset, 'b', where='post', label='modal')
 plt.show()
+
+#Acrescentando ref
+all_up = np.concatenate((disc_ss.A.A, disc_ss.B.A), axis=1)
+all_dw = np.concatenate((disc_ss.C.A, disc_ss.D.A), axis=1)
+all_2 = np.concatenate((all_up, all_dw), axis=0)
+Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [1]])
+print('Nrf\n',Nrf,'\nall_2\n',all_2)
+
+Nx = Nrf[0:2]
+Nu = Nrf[2]
+N = Nu + np.matmul(K, Nx)
+auxB = np.matmul(disc_ss.B, N)
+newB = np.concatenate((auxB, auxB), axis=0)
+print('matriz A\n', cl_ss.A)
+print('matriz newB\n', newB)
+aug_ss2 = ss(cl_ss.A, auxB, [1, 0], [0], Ts)
+print('printando a bagaça final\n',aug_ss2)
+
+X0_c = [[0], [0]]
+new_ss_c, mT = ctrl.reachable_form(aug_ss2)
+init_state_c = np.matmul(mT, X0_c)
+final_time_c = 20
+time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
+
+yout_c, tout_c, xout_c = initial(new_ss_c, time_d_c, init_state_c, return_x=True)
+xx_c = np.matmul(np.linalg.inv(mT), xout_c.T)
+yout_cc, Tcc = step(new_ss_c, time_d_c, init_state_c)
+plt.step(Tcc, yout_cc, where='post')
+plt.show()
+
+

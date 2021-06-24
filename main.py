@@ -56,26 +56,54 @@ air_density = (partial_dry*M_dry+partial_wet*M_water)/(R_gas*temp)
 
 # Sistema
 
-# Constantes
+# Constantes do problema
+
 diameter = 11 #inch
 radius = diameter*25.4/2000
 Ts = 0.02  # Amostragem
 w_max = 9380 # Vel. max. rpm
 c_tu = 0.1059
 A = np.pi*radius**2
+A_drone = 0.021
 m = 1
-w0 = np.pi/30*(0.4*w_max) # convertido para rad/s
+Ohm0 = np.pi/30*(0.4*w_max) # convertido para rad/s
 ct_br = (8/(np.pi ** 3))*c_tu
+cd = 0.8
+dz0 = 0.1
+
+# Parametros motor
+
+km = 12.1*(10**(-3))
+Cq = 0.8
+B = 5.3*(10**(-5))
+J = 1*(10**(-4))
+Rmotor = 0.275
+c_pu = 0.0407
+cq_br = (8/(np.pi ** 4))*c_pu
+
+# Constantes do ss
+
+b = (1/2)*(ct_br*air_density*A*radius**2)/m
+d_corpo = (1/2)*(cd*air_density*A_drone)
+d_motor = (1/2)*(cq_br*air_density*A*radius**2)
+
+# Constantes motor
+
+Am = -(km**2/(Rmotor*J) + (2*d_motor*Ohm0)/J)
+Bm = km/(Rmotor*J)
+Cm = ((d_motor*Ohm0**2)/J)
 
 # Espaço de estados - Continuo
 
-Ac = [[0,1],[0,0]]
-Bc = [[0],[12*ct_br*air_density*A*w0*(radius**2)/m]]
-Cc = [1,1]
+Ac = [[0,1,0],[0,(2*d_corpo*dz0)/m,(6*b*Ohm0)/m],[0,0,Am]]
+Bc = [[0],[0],[Bm]]
+Cc = [1,0,0]
 Dc = [0]
 
-constant_sis = -(6*ct_br*air_density*A*((w0*radius)**2)/m + g) 
-print("Constante:", constant_sis)
+print("1/tau:", (km**2)/(Rmotor*J))
+print("outro termo:",Am + (km**2)/(Rmotor*J))
+#constant_sis = -(6*ct_br*air_density*A*((w0*radius)**2)/m + g) 
+#print("Constante:", constant_sis)
 
 cont_ss = ss(Ac,Bc,Cc,Dc)
 print("Sistema Continuo:\n", cont_ss)
@@ -85,14 +113,16 @@ print("Sistema Continuo:\n", cont_ss)
 disc_ss = c2d(cont_ss, Ts)
 print("Sistema Discreto:\n", disc_ss)
 
+rlocus(disc_ss)
+plt.show()
 # Teste
-
+'''
 yout, T = step(cont_ss)
 plt.step(T, yout, where='post')
 plt.show()
 
 # Vel
-C_vel = [0,1]
+C_vel = [0,1,0]
 cont_ss_vel = ss(Ac,Bc,C_vel,Dc)
 
 yout_vel, T_vel = step(cont_ss_vel)
@@ -121,12 +151,12 @@ p_d2 = np.exp(p_c2*Ts)
 print("polos Discretos:\n", np.round(p_d1,4), "e", np.round(p_d2,4))
 
 # Valor inicial - gravidade medida pela IMU ?
-X0 = [[1], [0]]
+X0 = [[1], [0],[0]]
 
 #termo de "ruido" do resto da expansão de taylor - ficou bem ruim
 #X0 = [[0], [g + 6*((2*ct_br*air_density*A*(w0**2)*(radius**2)/m)+ct_br*air_density*A*(w0**2)*(radius**2)/m)]]
 
-mT = np.eye(2)
+mT = np.eye(3)
 new_ss, mT = ctrl.reachable_form(disc_ss)
 init_state = np.matmul(mT, X0)
 # colocando os polos
@@ -176,5 +206,5 @@ xx_c = np.matmul(np.linalg.inv(mT), xout_c.T)
 yout_cc, Tcc = step(new_ss_c, time_d_c, init_state_c)
 plt.step(Tcc, yout_cc, where='post')
 plt.show()
-
+'''
 

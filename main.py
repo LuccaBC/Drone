@@ -167,7 +167,7 @@ K = place(new_ss.A, new_ss.B, [p_d1, p_d2, 0.6309566]) # Controlabilidade forma 
 PHI = new_ss.A - np.matmul(new_ss.B,K)
 print('K=', np.round(K, 2))
 
-#Parte nova
+#step controle sem ref
 final_time = 10
 offset = 0
 print('Matriz nova controle \n', PHI)
@@ -181,9 +181,57 @@ plt.step(tout, (xx[0, :].T)+offset, 'r', where='post', label='modal')
 plt.step(tout, (xx[1, :].T)+offset, 'b', where='post', label='modal')
 plt.show()
 
+#Observador
+#disc_ss
+p_o1 = np.exp(10*p_c1*Ts)
+p_o2 = np.exp(10*p_c2*Ts)
+X0 = [[0], [0], [0]]
+Ltr = place(disc_ss.A.T, disc_ss.C.T,[p_o1, p_o2, 0.6309566])
+L = Ltr.T
+newA = disc_ss.A - np.matmul(L,disc_ss.C)
+
+print('matriz L do controlador: \n', L)
+#pondo tudo juntao
+#deve-se expandir a matriz 
+K = place(disc_ss.A, disc_ss.B,[p_d1, p_d2, 0.6309566])
+all_A = np.concatenate((disc_ss.A.A,-np.matmul(disc_ss.B,K)), axis=1)
+aux_A = np.concatenate((np.matmul(L, disc_ss.C),newA - np.matmul(disc_ss.B,K)),axis=1)
+all_A = np.concatenate((all_A, aux_A), axis=0)
+print('print A com controlador :\n', all_A)
+
+#acrescentando a ref
+all_up = np.concatenate((disc_ss.A.A, disc_ss.B.A), axis=1)
+all_dw = np.concatenate((disc_ss.C.A,disc_ss.D.A),  axis=1)
+all_2 = np.concatenate((all_up, all_dw), axis=0)
+Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [0], [1]])
+print("bagulho:\n",np.linalg.inv(all_2))
+print('Nrf\n',Nrf,'\nall_2\n',all_2)
+
+Nx = Nrf[0:3]
+#Nu = -636.38#Nrf[3]
+Nu = Nrf[3]
+N =  Nu + np.matmul(K, Nx)
+print("N:\n",N)
+auxB = np.matmul(disc_ss.B, N)
+newB = np.concatenate((auxB, auxB), axis=0)
+print('matriz auxB\n', auxB)
+aug_ss2 = ss(all_A, newB, [1,0,0,0,0,0], [0], Ts)
+print('printando a bagaça final\n',aug_ss2)
+
+mT_c = np.eye(6)
+X0_c = [[0], [0], [0], [0], [0], [0]]
+init_state_c = np.matmul(mT_c, X0_c)
+final_time_c = 50
+time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
+
+yout_cc, Tcc = step(aug_ss2, time_d_c, init_state_c)
+plt.step(Tcc, yout_cc, where='post')
+plt.show()
+
+'''
 #Acrescentando ref
 all_up = np.concatenate((new_ss.A.A, new_ss.B.A), axis=1)
-all_dw = np.concatenate((new_ss.C.A, new_ss.D.A), axis=1)
+all_dw = np.concatenate((new_ss.D.A,new_ss.C.A),  axis=1)
 all_2 = np.concatenate((all_up, all_dw), axis=0)
 
 Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [0], [1]])
@@ -191,7 +239,8 @@ print("bagulho:\n",np.linalg.inv(all_2))
 print('Nrf\n',Nrf,'\nall_2\n',all_2)
 
 Nx = Nrf[0:3]
-Nu = -636.38#Nrf[3]
+#Nu = -636.38#Nrf[3]
+Nu = Nrf[3]
 N =  Nu + np.matmul(K, Nx)
 print("N:\n",N)
 auxB = np.matmul(disc_ss.B, N)
@@ -211,5 +260,6 @@ xx_c = np.matmul(np.linalg.inv(mT), xout_c.T)
 yout_cc, Tcc = step(aug_ss2, time_d_c, init_state_c)
 plt.step(Tcc, yout_cc, where='post')
 plt.show()
+'''
 
 

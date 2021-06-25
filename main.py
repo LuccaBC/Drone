@@ -91,8 +91,14 @@ d_motor = (1/2)*(cq_br*air_density*A*radius**2)
 
 Am = -(km**2/(Rmotor*J) + (2*d_motor*Ohm0)/J)
 Bm = km/(Rmotor*J)
-Cm = ((d_motor*Ohm0**2)/J)
 
+# Constantes dos estados
+const_x1 = (d_corpo*dz0**2)/m
+const_x2 = (3*b*Ohm0**2)/m +g
+const_x3 = ((d_motor*Ohm0**2)/J)
+
+vet_const = [const_x1, const_x2, const_x1]
+print("Veotr de constantes:\n", vet_const)
 # Espaço de estados - Continuo
 
 Ac = [[0,1,0],[0,(2*d_corpo*dz0)/m,(6*b*Ohm0)/m],[0,0,Am]]
@@ -100,8 +106,6 @@ Bc = [[0],[0],[Bm]]
 Cc = [1,0,0]
 Dc = [0]
 
-print("1/tau:", (km**2)/(Rmotor*J))
-print("outro termo:",Am + (km**2)/(Rmotor*J))
 #constant_sis = -(6*ct_br*air_density*A*((w0*radius)**2)/m + g) 
 #print("Constante:", constant_sis)
 
@@ -113,10 +117,10 @@ print("Sistema Continuo:\n", cont_ss)
 disc_ss = c2d(cont_ss, Ts)
 print("Sistema Discreto:\n", disc_ss)
 
-rlocus(disc_ss)
-plt.show()
+
+print(disc_ss.pole())
 # Teste
-'''
+
 yout, T = step(cont_ss)
 plt.step(T, yout, where='post')
 plt.show()
@@ -151,16 +155,15 @@ p_d2 = np.exp(p_c2*Ts)
 print("polos Discretos:\n", np.round(p_d1,4), "e", np.round(p_d2,4))
 
 # Valor inicial - gravidade medida pela IMU ?
-X0 = [[1], [0],[0]]
+X0 = [[-1], [0], [0]]
 
 #termo de "ruido" do resto da expansão de taylor - ficou bem ruim
-#X0 = [[0], [g + 6*((2*ct_br*air_density*A*(w0**2)*(radius**2)/m)+ct_br*air_density*A*(w0**2)*(radius**2)/m)]]
 
 mT = np.eye(3)
 new_ss, mT = ctrl.reachable_form(disc_ss)
 init_state = np.matmul(mT, X0)
 # colocando os polos
-K = place(new_ss.A, new_ss.B, [p_d1, p_d2]) # Controlabilidade forma canonica
+K = place(new_ss.A, new_ss.B, [p_d1, p_d2, 0.6309566]) # Controlabilidade forma canonica
 PHI = new_ss.A - np.matmul(new_ss.B,K)
 print('K=', np.round(K, 2))
 
@@ -168,7 +171,7 @@ print('K=', np.round(K, 2))
 final_time = 10
 offset = 0
 print('Matriz nova controle \n', PHI)
-cl_ss = ss(PHI, [[0], [0]], new_ss.C, new_ss.D, Ts)
+cl_ss = ss(PHI, [[0], [0], [0]], new_ss.C, new_ss.D, Ts)
 print('A=', np.round(cl_ss.A, 2))
 time_d = linspace(0, int(final_time/Ts)*Ts, int(final_time/Ts)+1)
 yout, tout, xout = initial(cl_ss, time_d, init_state, return_x=True)
@@ -179,32 +182,34 @@ plt.step(tout, (xx[1, :].T)+offset, 'b', where='post', label='modal')
 plt.show()
 
 #Acrescentando ref
-all_up = np.concatenate((disc_ss.A.A, disc_ss.B.A), axis=1)
-all_dw = np.concatenate((disc_ss.C.A, disc_ss.D.A), axis=1)
+all_up = np.concatenate((new_ss.A.A, new_ss.B.A), axis=1)
+all_dw = np.concatenate((new_ss.C.A, new_ss.D.A), axis=1)
 all_2 = np.concatenate((all_up, all_dw), axis=0)
-Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [1]])
+
+Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [0], [1]])
+print("bagulho:\n",np.linalg.inv(all_2))
 print('Nrf\n',Nrf,'\nall_2\n',all_2)
 
-Nx = Nrf[0:2]
-Nu = Nrf[2]
-N = Nu + np.matmul(K, Nx)
+Nx = Nrf[0:3]
+Nu = -636.38#Nrf[3]
+N =  Nu + np.matmul(K, Nx)
+print("N:\n",N)
 auxB = np.matmul(disc_ss.B, N)
 newB = np.concatenate((auxB, auxB), axis=0)
 print('matriz A\n', cl_ss.A)
-print('matriz newB\n', newB)
-aug_ss2 = ss(cl_ss.A, auxB, [1, 0], [0], Ts)
+print('matriz auxB\n', auxB)
+aug_ss2 = ss(cl_ss.A, auxB, cl_ss.C, [0], Ts)
 print('printando a bagaça final\n',aug_ss2)
 
-X0_c = [[0], [0]]
-new_ss_c, mT = ctrl.reachable_form(aug_ss2)
+X0_c = [[0], [0], [0]]
 init_state_c = np.matmul(mT, X0_c)
-final_time_c = 20
+final_time_c = 10
 time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
 
-yout_c, tout_c, xout_c = initial(new_ss_c, time_d_c, init_state_c, return_x=True)
+yout_c, tout_c, xout_c = initial(aug_ss2, time_d_c, init_state_c, return_x=True)
 xx_c = np.matmul(np.linalg.inv(mT), xout_c.T)
-yout_cc, Tcc = step(new_ss_c, time_d_c, init_state_c)
+yout_cc, Tcc = step(aug_ss2, time_d_c, init_state_c)
 plt.step(Tcc, yout_cc, where='post')
 plt.show()
-'''
+
 

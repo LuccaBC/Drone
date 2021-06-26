@@ -14,19 +14,19 @@ latitude = -22.0104
 humidity = 0.39
 
 ###São José do Rio Preto --------------
-##height = 489
-##latitude =  -20.8202
-##humidity = 0.3
+#height = 489
+#latitude =  -20.8202
+#humidity = 0.3
 ##
 ###Ribeirão Preto ---------------
-##height = 546.8
-##latitude =  -21.1036
-##humidity = 0.36
+#height = 546.8
+#latitude =  -21.1036
+#humidity = 0.36
 ##
 ###Recife---------------
-##height = 4
-##latitude =  -8.0403
-##humidity = 0.85
+#height = 4
+#latitude =  -8.0403
+#humidity = 0.85
 
 #Atmospheric calculation
 
@@ -139,6 +139,7 @@ plt.show()
 # Acc max = 10,2 cm/s^2
 
 zeta = 0.4037
+#zeta = 0.5037
 ts_1 = 10
 
 wn = 4.6/(zeta*ts_1)
@@ -160,7 +161,8 @@ X0 = [[-1], [0], [0]]
 #termo de "ruido" do resto da expansão de taylor - ficou bem ruim
 
 mT = np.eye(3)
-new_ss, mT = ctrl.reachable_form(disc_ss)
+#new_ss, mT = ctrl.reachable_form(disc_ss)
+new_ss = disc_ss
 init_state = np.matmul(mT, X0)
 # colocando os polos
 K = place(new_ss.A, new_ss.B, [p_d1, p_d2, 0.6309566]) # Controlabilidade forma canonica
@@ -180,6 +182,13 @@ xx = np.matmul(np.linalg.inv(mT), xout.T)
 plt.step(tout, (xx[0, :].T)+offset, 'r', where='post', label='modal')
 plt.step(tout, (xx[1, :].T)+offset, 'b', where='post', label='modal')
 plt.show()
+
+'''
+#step normal do controlado sem ref
+yout, T = step(cl_ss, time_d, init_state)
+plt.step(T, yout, where='post')
+plt.show()
+'''
 
 #Observador
 #disc_ss
@@ -203,14 +212,14 @@ print('print A com controlador :\n', all_A)
 all_up = np.concatenate((disc_ss.A.A, disc_ss.B.A), axis=1)
 all_dw = np.concatenate((disc_ss.C.A,disc_ss.D.A),  axis=1)
 all_2 = np.concatenate((all_up, all_dw), axis=0)
-Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [0], [1]])
-print("bagulho:\n",np.linalg.inv(all_2))
+Nrf = np.matmul(np.linalg.inv(all_2), [[1], [0], [0], [1]])
+print("inversa da A:\n",np.linalg.inv(all_2))
 print('Nrf\n',Nrf,'\nall_2\n',all_2)
 
 Nx = Nrf[0:3]
-#Nu = -636.38#Nrf[3]
 Nu = Nrf[3]
 N =  Nu + np.matmul(K, Nx)
+#N = -np.linalg.inv(np.matmul([1,0,0], np.matmul(np.linalg.inv(disc_ss.A - np.matmul(disc_ss.B,K)),disc_ss.B)))
 print("N:\n",N)
 auxB = np.matmul(disc_ss.B, N)
 newB = np.concatenate((auxB, auxB), axis=0)
@@ -221,45 +230,22 @@ print('printando a bagaça final\n',aug_ss2)
 mT_c = np.eye(6)
 X0_c = [[0], [0], [0], [0], [0], [0]]
 init_state_c = np.matmul(mT_c, X0_c)
-final_time_c = 50
-time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
-
-yout_cc, Tcc = step(aug_ss2, time_d_c, init_state_c)
-plt.step(Tcc, yout_cc, where='post')
-plt.show()
-
-'''
-#Acrescentando ref
-all_up = np.concatenate((new_ss.A.A, new_ss.B.A), axis=1)
-all_dw = np.concatenate((new_ss.D.A,new_ss.C.A),  axis=1)
-all_2 = np.concatenate((all_up, all_dw), axis=0)
-
-Nrf = np.matmul(np.linalg.inv(all_2), [[0], [0], [0], [1]])
-print("bagulho:\n",np.linalg.inv(all_2))
-print('Nrf\n',Nrf,'\nall_2\n',all_2)
-
-Nx = Nrf[0:3]
-#Nu = -636.38#Nrf[3]
-Nu = Nrf[3]
-N =  Nu + np.matmul(K, Nx)
-print("N:\n",N)
-auxB = np.matmul(disc_ss.B, N)
-newB = np.concatenate((auxB, auxB), axis=0)
-print('matriz A\n', cl_ss.A)
-print('matriz auxB\n', auxB)
-aug_ss2 = ss(cl_ss.A, auxB, cl_ss.C, [0], Ts)
-print('printando a bagaça final\n',aug_ss2)
-
-X0_c = [[0], [0], [0]]
-init_state_c = np.matmul(mT, X0_c)
 final_time_c = 10
 time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
-
-yout_c, tout_c, xout_c = initial(aug_ss2, time_d_c, init_state_c, return_x=True)
-xx_c = np.matmul(np.linalg.inv(mT), xout_c.T)
 yout_cc, Tcc = step(aug_ss2, time_d_c, init_state_c)
 plt.step(Tcc, yout_cc, where='post')
 plt.show()
-'''
+
+#info do step
+info_do_step_ref = stepinfo(aug_ss2)
+print('stepinfo aug_ss2:\n',info_do_step_ref)
+
+#Acrescentando ruido do barometro
+#vetor de ruido ate 0.5
+
+
+
+
+
 
 

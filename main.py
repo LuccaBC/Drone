@@ -239,13 +239,22 @@ plt.show()
 #info do step
 info_do_step_ref = stepinfo(aug_ss2)
 print('stepinfo aug_ss2:\n',info_do_step_ref)
+#FT do sistema discrtizado
+G_c = ss2tf(aug_ss2)
 
+
+'''
 #Acrescentando ruido do barometro
 #vetor de ruido ate 0.5
-
-
-
-
+Bnoise = np.random.rand(1,len(time_d_c))
+mT_n = np.eye(6)
+X0_n = [[0], [0], [0], [0], [0], [0]]
+init_state_n = np.matmul(mT_n, X0_n)
+final_time_n = 10
+yout_noise, Tnoise = step(aug_ss2, time_d_c, init_state_n)
+plt.step(Tnoise, yout_noise, where='post')
+plt.show()
+'''
 
 
 

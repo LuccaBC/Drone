@@ -9,9 +9,9 @@ import scipy.signal as sig
 
 #Enviroment input
 #São Carlos -----------
-height = 856 #meters above seal level
-latitude = -22.0104
-humidity = 0.39
+#height = 856 #meters above seal level
+#latitude = -22.0104
+#humidity = 0.39
 
 ###São José do Rio Preto --------------
 #height = 489
@@ -24,9 +24,9 @@ humidity = 0.39
 #humidity = 0.36
 ##
 ###Recife---------------
-#height = 4
-#latitude =  -8.0403
-#humidity = 0.85
+height = 4
+latitude =  -8.0403
+humidity = 0.85
 
 #Atmospheric calculation
 
@@ -85,7 +85,7 @@ cq_br = (8/(np.pi ** 4))*c_pu
 
 b = (1/2)*(ct_br*air_density*A*radius**2)/m
 d_corpo = (1/2)*(cd*air_density*A_drone)
-d_motor = (1/2)*(cq_br*air_density*A*radius**2)
+d_motor = (1/2)*(cq_br*air_density*A*radius**3)
 
 # Constantes motor
 
@@ -207,15 +207,26 @@ all_A = np.concatenate((disc_ss.A.A,-np.matmul(disc_ss.B,K)), axis=1)
 aux_A = np.concatenate((np.matmul(L, disc_ss.C),newA - np.matmul(disc_ss.B,K)),axis=1)
 all_A = np.concatenate((all_A, aux_A), axis=0)
 print('print A com controlador :\n', all_A)
-
+#####################################
+#novo sistema somente com o observador
+teste_ss = ss(all_A,np.zeros([6,1]),[1,0,0,0,0,0],[0],Ts)
+#######################################
 #acrescentando a ref
 all_up = np.concatenate((disc_ss.A.A, disc_ss.B.A), axis=1)
 all_dw = np.concatenate((disc_ss.C.A,disc_ss.D.A),  axis=1)
 all_2 = np.concatenate((all_up, all_dw), axis=0)
-Nrf = np.matmul(np.linalg.inv(all_2), [[1], [0], [0], [1]])
+Nrf = np.matmul(np.linalg.inv(all_2), [[1], [0], [0], [1]]) # -> [[1], [0], [0], [1]]
+intall2 = np.linalg.inv(all_2)
+
+#para provar mal condicionamento da matriz
+condicional_M = np.linalg.norm(all_2,2)*np.linalg.norm(intall2,2)
+#como foi mal condicionada pode-se utiilizar o matmul em ->[[1], [0], [0], [1]]
+
+
 print("inversa da A:\n",np.linalg.inv(all_2))
 print('Nrf\n',Nrf,'\nall_2\n',all_2)
 
+print('inv da all_2', np.round(intall2,1))
 Nx = Nrf[0:3]
 Nu = Nrf[3]
 N =  Nu + np.matmul(K, Nx)
@@ -232,15 +243,26 @@ X0_c = [[0], [0], [0], [0], [0], [0]]
 init_state_c = np.matmul(mT_c, X0_c)
 final_time_c = 10
 time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
+
 yout_cc, Tcc = step(aug_ss2, time_d_c, init_state_c)
 plt.step(Tcc, yout_cc, where='post')
 plt.show()
+
+'''
+#grafico somente do controle com observador
+yout, tout, xout = initial(teste_ss, time_d_c, init_state_c, return_x=True)
+xx_c = np.matmul(np.linalg.inv(mT_c), xout.T)
+#print('xx=\n', xx)
+plt.step(tout, (xx_c[0, :].T), 'r', where='post', label='modal')
+plt.show()
+'''
 
 #info do step
 info_do_step_ref = stepinfo(aug_ss2)
 print('stepinfo aug_ss2:\n',info_do_step_ref)
 #FT do sistema discrtizado
 G_c = ss2tf(aug_ss2)
+
 
 
 '''
@@ -256,5 +278,10 @@ plt.step(Tnoise, yout_noise, where='post')
 plt.show()
 '''
 
+
+#Parte 2
+#tentando acrescentar o esp de estados dos angulos
+#Conforme PDF Lucas de Paula
+l = 0.072456 #metade do lado do quadrado que froma o drone - A no witeboard que usamos
 
 

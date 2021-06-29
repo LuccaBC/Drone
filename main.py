@@ -6,6 +6,7 @@ import control as ctrl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as sig
+from non_linear_model import * 
 
 #Enviroment input
 #São Carlos -----------

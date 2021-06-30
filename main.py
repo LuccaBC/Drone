@@ -309,22 +309,26 @@ vect_w = [w]
 vect_z = [z]
 vect_zdot = [z_dot]
 vect_z2dot = [z_2dot]
-xbar = [[0],[0],[0]]
+xbar = [[0],[dz0],[Ohm0]]
 ref = 1
+
 # Loop
 
 for count_t, timestemp in enumerate(vec_time[1:]):
 
 	aux_xbar1 = np.matmul(disc_ss.B.A,K)
 	aux_xbar2 = np.matmul(L,disc_ss.C.A)
-	aux_xbar3 = aux_xbar1+aux_xbar2
-	Xbar = np.matmul(disc_ss.A.A-aux_xbar3,xbar) + L*z
+	aux_xbar3 = -aux_xbar1-aux_xbar2
+	Xbar = np.matmul(disc_ss.A.A+aux_xbar3,xbar) + L*z + auxB*ref
 
 	#Xbar = Xbar + L*(np.matmul(disc_ss.C.A,xbar))
 
-	U = np.matmul(-K,Xbar) + N*ref
+	aux_u = np.matmul(-K,Xbar)
 
-	w_dot = A*w + B*w**2 + C*U[0,0]
+	U = aux_u[0,0] + N[0,0]*ref
+
+
+	w_dot = A*w + B*w**2 + C*U
 
 	# Integração de w
 
@@ -332,7 +336,7 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 
 	# Sistema
     
-	z_2dot = -g - (d_corpo/m)*z_dot**2 + 6*(b/m)*w**2
+	z_2dot =  -g - (d_corpo/m)*z_dot**2 + 6*(b/m)*w**2
 
 	z_dot += z_2dot*Ts 
 

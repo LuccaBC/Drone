@@ -313,28 +313,31 @@ xbar = [[0],[0],[0]]
 ref = 1
 # Loop
 
-for count_t, timestamp in enumerate(vec_time[1:]):
+for count_t, timestemp in enumerate(vec_time[1:]):
 
 	aux_xbar1 = np.matmul(disc_ss.B.A,K)
 	aux_xbar2 = np.matmul(L,disc_ss.C.A)
-	aux_xbar3 = aux_xbar1-aux_xbar2
-	Xbar = np.matmul(disc_ss.A.A-aux_xbar3,xbar)
-	U = np.matmul(-K,Xbar)+N*ref
+	aux_xbar3 = aux_xbar1+aux_xbar2
+	Xbar = np.matmul(disc_ss.A.A-aux_xbar3,xbar) + L*z
 
-	w_dot = A*w + B*w**2 + C*U
+	#Xbar = Xbar + L*(np.matmul(disc_ss.C.A,xbar))
+
+	U = np.matmul(-K,Xbar) + N*ref
+
+	w_dot = A*w + B*w**2 + C*U[0,0]
 
 	# Integração de w
 
 	w += w_dot*Ts 
 
 	# Sistema
-
-	z_2dot = -g -(d_corpo/m)*z_dot**2 + 3*(b/m)*w**2
+    
+	z_2dot = -g - (d_corpo/m)*z_dot**2 + 6*(b/m)*w**2
 
 	z_dot += z_2dot*Ts 
 
-	z += z_2dot*Ts
-
+	z += z_dot*Ts #+ 0.5*z_2dot*Ts**2
+    
 	# Adicionando valores aos vetores
 
 	vect_w.append(w)
@@ -342,10 +345,11 @@ for count_t, timestamp in enumerate(vec_time[1:]):
 	vect_zdot.append(z_dot)
 	vect_z2dot.append(z_2dot)
 
-	aux_vec = np.concatenate((z,z_dot),axis=0)
-	xbar = np.concatenate((aux_vec,w),axis=0)
+	
+	xbar = [[z],[z_dot],[w]]
+    
 
-plt.plot(vect_z,vec_time)
+plt.plot(vec_time, vect_z)
 plt.show()
 #Parte 2
 #tentando acrescentar o esp de estados dos angulos

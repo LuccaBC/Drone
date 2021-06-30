@@ -7,14 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as sig
 
-
-def control_action(K, Xbar,Nbar,ref):
-
-	
-	U = np.matmul(-K,Xbar)+Nbar*ref
-
-	return
-
 def non_linear_sis():
 
 	# Constantes
@@ -50,7 +42,9 @@ def non_linear_sis():
 
 	for count_t, timestamp in enumerate(vec_time[1:]):
 
-		U = control_action()
+		Xbar = np.matmul(ssA-np.matmul(ssB,ssK)-np.matmul(ssL,ssC),Xbar)
+		U = np.matmul(-K,Xbar)+Nbar*ref
+
 		w_dot = A*w + B*w**2 + C*U
 
 		# Integração de w
@@ -71,5 +65,7 @@ def non_linear_sis():
 		vect_z.append(z)
 		vect_zdot.append(z_dot)
 		vect_z2dot.append(z_2dot)
+
+		xbar = [[z],[z_dot],[w]]
 
 	return None

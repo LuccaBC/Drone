@@ -279,7 +279,74 @@ plt.step(Tnoise, yout_noise, where='post')
 plt.show()
 '''
 
+#Parte 1.2
 
+# Constantes
+
+w = 0
+z = 0
+z_dot = 0
+z_2dot = 0
+
+# Motor
+
+tau = (Rmotor*J)/(km**2) 
+
+A = -(1/tau)
+
+B = -d_motor/J
+
+C = 1/(km*tau)
+
+# Constantes de tempo 
+tf = 10
+timestep = 0.02
+vec_time = np.linspace(0, tf, int(tf/timestep)+1)
+
+# Vetores
+
+vect_w = [w]
+vect_z = [z]
+vect_zdot = [z_dot]
+vect_z2dot = [z_2dot]
+xbar = [[0],[0],[0]]
+ref = 1
+# Loop
+
+for count_t, timestamp in enumerate(vec_time[1:]):
+
+	aux_xbar1 = np.matmul(disc_ss.B.A,K)
+	aux_xbar2 = np.matmul(L,disc_ss.C.A)
+	aux_xbar3 = aux_xbar1-aux_xbar2
+	Xbar = np.matmul(disc_ss.A.A-aux_xbar3,xbar)
+	U = np.matmul(-K,Xbar)+N*ref
+
+	w_dot = A*w + B*w**2 + C*U
+
+	# Integração de w
+
+	w += w_dot*Ts 
+
+	# Sistema
+
+	z_2dot = -g -(d_corpo/m)*z_dot**2 + 3*(b/m)*w**2
+
+	z_dot += z_2dot*Ts 
+
+	z += z_2dot*Ts
+
+	# Adicionando valores aos vetores
+
+	vect_w.append(w)
+	vect_z.append(z)
+	vect_zdot.append(z_dot)
+	vect_z2dot.append(z_2dot)
+
+	aux_vec = np.concatenate((z,z_dot),axis=0)
+	xbar = np.concatenate((aux_vec,w),axis=0)
+
+plt.plot(vect_z,vec_time)
+plt.show()
 #Parte 2
 #tentando acrescentar o esp de estados dos angulos
 #Conforme PDF Lucas de Paula

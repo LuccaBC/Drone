@@ -102,7 +102,7 @@ vet_const = [const_x1, const_x2, const_x1]
 print("Veotr de constantes:\n", vet_const)
 # Espaço de estados - Continuo
 
-Ac = [[0,1,0],[0,(2*d_corpo*dz0)/m,(6*b*Ohm0)/m],[0,0,Am]]
+Ac = [[0,1,0],[0,(-2*d_corpo*dz0)/m,(6*b*Ohm0)/m],[0,0,Am]]
 Bc = [[0],[0],[Bm]]
 Cc = [1,0,0]
 Dc = [0]
@@ -287,6 +287,7 @@ w = 0
 z = 0
 z_dot = 0
 z_2dot = 0
+U = 0
 
 # Motor
 
@@ -300,60 +301,70 @@ C = 1/(km*tau)
 
 # Constantes de tempo 
 tf = 10
-timestep = 0.02
+timestep = 0.001
+Ts = 0.02
 vec_time = np.linspace(0, tf, int(tf/timestep)+1)
-
+vec_time_plot = np.linspace(0, tf, int(tf/Ts))
 # Vetores
 
 vect_w = [w]
 vect_z = [z]
 vect_zdot = [z_dot]
 vect_z2dot = [z_2dot]
-xbar = [[0],[dz0],[Ohm0]]
+xbar = [[0],[0],[0]]
+Xbar = [[0],[0],[0]]
 ref = 1
+
+# Teste
+cont = 0
+vect_aux_u = [0]
+vect_Nref = [0]
 
 # Loop
 
 for count_t, timestemp in enumerate(vec_time[1:]):
 
-	aux_xbar1 = np.matmul(disc_ss.B.A,K)
-	aux_xbar2 = np.matmul(L,disc_ss.C.A)
-	aux_xbar3 = -aux_xbar1-aux_xbar2
-	Xbar = np.matmul(disc_ss.A.A+aux_xbar3,xbar) + L*z + auxB*ref
+	if cont == 20:
+		aux_xbar1 = np.matmul(disc_ss.B.A,K)
+		aux_xbar2 = np.matmul(L,disc_ss.C.A)
+		aux_xbar3 = -aux_xbar1-aux_xbar2
+		Xbar = np.matmul(disc_ss.A.A+aux_xbar3,Xbar) + L*(z - ref) + auxB*ref
 
-	#Xbar = Xbar + L*(np.matmul(disc_ss.C.A,xbar))
+		xbar = Xbar + [[const_x1], [const_x2], [const_x3]]
 
-	aux_u = np.matmul(-K,Xbar)
+		aux_u = np.matmul(-K,Xbar)
 
-	U = aux_u[0,0] + N[0,0]*ref
+		U = aux_u[0,0] + 4.8 #N[0,0]*ref + 4
+		vect_aux_u.append(aux_u[0,0])
+		vect_Nref.append(N[0,0]*ref)
 
+		cont = 0
 
+	# MIN DE u É 0,6 q é 5% da vbat
+	# max é 95% de 12v 11,4
 	w_dot = A*w + B*w**2 + C*U
 
 	# Integração de w
 
-	w += w_dot*Ts 
+	w += w_dot*timestep
 
 	# Sistema
     
 	z_2dot =  -g - (d_corpo/m)*z_dot**2 + 6*(b/m)*w**2
 
-	z_dot += z_2dot*Ts 
+	z_dot += z_2dot*timestep 
 
-	z += z_dot*Ts #+ 0.5*z_2dot*Ts**2
-    
+	z += z_dot*timestep #+ 0.5*z_2dot*Ts**2
+
 	# Adicionando valores aos vetores
 
 	vect_w.append(w)
 	vect_z.append(z)
 	vect_zdot.append(z_dot)
 	vect_z2dot.append(z_2dot)
+	cont += 1
 
-	
-	xbar = [[z],[z_dot],[w]]
-    
-
-plt.plot(vec_time, vect_z)
+plt.plot(vec_time_plot, vect_aux_u)
 plt.show()
 #Parte 2
 #tentando acrescentar o esp de estados dos angulos

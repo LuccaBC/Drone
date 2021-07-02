@@ -333,8 +333,9 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 		xbar = Xbar + [[const_x1], [const_x2], [const_x3]]
 
 		aux_u = np.matmul(-K,Xbar)
-
-		U = aux_u[0,0] + 4.8 #N[0,0]*ref + 4
+        
+        #Aproximandamente a porcentagem dada por 'Desired Q' * tensão da bateria = 4.656
+		U = aux_u[0,0] + 4.656 #4.8 #N[0,0]*ref + 4
 		vect_aux_u.append(aux_u[0,0])
 		vect_Nref.append(N[0,0]*ref)
 
@@ -364,7 +365,7 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 	vect_z2dot.append(z_2dot)
 	cont += 1
 
-plt.plot(vec_time_plot, vect_aux_u)
+plt.plot(vec_time, vect_z)
 plt.show()
 #Parte 2
 #tentando acrescentar o esp de estados dos angulos

@@ -161,7 +161,7 @@ p_d2 = np.exp(p_c2*Ts)
 print("polos Discretos:\n", np.round(p_d1,4), "e", np.round(p_d2,4))
 
 # Valor inicial - gravidade medida pela IMU ?
-X0 = [[-1], [0], [0],[0]]
+X0 = [[-1], [0], [0], [0]]
 
 #termo de "ruido" do resto da expansão de taylor - ficou bem ruim
 aux_c = [0,0,0,0]
@@ -174,15 +174,15 @@ new_ss_atz_A = np.concatenate((new_ss_aux,[[0],[0],[0],[0]]),axis = 1).T
 new_ss_atz_B = np.concatenate((new_ss.B.T,[[1]]),axis = 1).T
 init_state = np.matmul(mT, X0)
 # colocando os polos
-K = place(new_ss_atz_A, new_ss_atz_B, [p_d1, p_d2, 0.6309566, 0.62]) # Controlabilidade forma canonica
+K = place(new_ss_atz_A, new_ss_atz_B, [p_d1, p_d2, 0.6309566, 0.63]) # Controlabilidade forma canonica
 PHI = new_ss_atz_A - np.matmul(new_ss_atz_B,K)
 print('K=', np.round(K, 2))
-
 #step controle sem ref
 final_time = 10
 offset = 0
 print('Matriz nova controle \n', PHI)
-cl_ss = ss(PHI, [[0], [0], [0],[0]], [1,0,0,0], new_ss.D, Ts)
+#tive que alterar a B e a C manualmente para uma linha a mais
+cl_ss = ss(PHI, [[0], [0], [0], [0]], [1,0,0,0], new_ss.D, Ts)
 print('A=', np.round(cl_ss.A, 2))
 time_d = linspace(0, int(final_time/Ts)*Ts, int(final_time/Ts)+1)
 yout, tout, xout = initial(cl_ss, time_d, init_state, return_x=True)
@@ -245,10 +245,18 @@ auxB = np.matmul(disc_ss.B, N)
 newB = np.concatenate((auxB, auxB), axis=0)
 print('matriz auxB\n', auxB)
 aug_ss2 = ss(all_A, newB, [1,0,0,0,0,0], [0], Ts)
-print('printando a bagaça final\n',aug_ss2)
 
-mT_c = np.eye(6)
-X0_c = [[0], [0], [0], [0], [0], [0]]
+#adding o atraso
+aux_aug = np.concatenate((all_A.A,[[0],[0],[0],[0],[0],[0]]),axis = 1).T
+aug_atz_A = np.concatenate((aux_aug,[[0],[0],[0],[0],[0],[0],[0]]),axis = 1).T
+aug_atz_B = np.concatenate((newB.T,[[1]]),axis = 1).T
+aug_ss2.A = aug_atz_A
+aug_ss2.B = aug_atz_B
+aug_ss2.C = [1,0,0,0,0,0,0]
+
+print('printando a bagaça final\n',aug_ss2)
+mT_c = np.eye(7)
+X0_c = [[0], [0], [0], [0], [0], [0], [0]]
 init_state_c = np.matmul(mT_c, X0_c)
 final_time_c = 10
 time_d_c = linspace(0, int(final_time_c/Ts)*Ts, int(final_time_c/Ts)+1)
@@ -269,23 +277,7 @@ plt.show()
 #info do step
 info_do_step_ref = stepinfo(aug_ss2)
 print('stepinfo aug_ss2:\n',info_do_step_ref)
-#FT do sistema discrtizado
-G_c = ss2tf(aug_ss2)
 
-
-
-'''
-#Acrescentando ruido do barometro
-#vetor de ruido ate 0.5
-Bnoise = np.random.rand(1,len(time_d_c))
-mT_n = np.eye(6)
-X0_n = [[0], [0], [0], [0], [0], [0]]
-init_state_n = np.matmul(mT_n, X0_n)
-final_time_n = 10
-yout_noise, Tnoise = step(aug_ss2, time_d_c, init_state_n)
-plt.step(Tnoise, yout_noise, where='post')
-plt.show()
-'''
 
 #Parte 1.2
 
@@ -326,6 +318,7 @@ ref = 1
 # Teste
 cont = 0
 vect_aux_u = [0]
+vect_aux_u2 = [0]
 vect_Nref = [0]
 
 # Loop
@@ -342,6 +335,7 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 
 		aux_u = np.matmul(-K,Xbar)
         
+        
         #Aproximandamente a porcentagem dada por 'Desired Q' * tensão da bateria = 4.656
 		U = aux_u[0,0] + 4.656 #4.8 #N[0,0]*ref + 4
 		vect_aux_u.append(aux_u[0,0])
@@ -349,8 +343,14 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 
 		cont = 0
 
-	# MIN DE u É 0,6 q é 5% da vbat
+	# MIN DE u É 0,6 q é 5% da vbat - saturação
 	# max é 95% de 12v 11,4
+
+	if U > 11.4:
+		U = 11.4
+	elif U < 0.6:
+		U = 0.6
+	vect_aux_u2.append(U)
 	w_dot = A*w + B*w**2 + C*U
 
 	# Integração de w
@@ -362,7 +362,9 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 	z_2dot =  -g - (d_corpo/m)*z_dot**2 + 6*(b/m)*w**2
 
 	z_dot += z_2dot*timestep 
-
+	#limite do chão    
+	if z < 0:
+		z = 0
 	z += z_dot*timestep #+ 0.5*z_2dot*Ts**2
 
 	# Adicionando valores aos vetores
@@ -372,7 +374,11 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 	vect_zdot.append(z_dot)
 	vect_z2dot.append(z_2dot)
 	cont += 1
-
+    
+plt.plot(vec_time, vect_aux_u2)
+plt.show()
+plt.plot(vec_time, vect_z2dot)
+plt.show()
 plt.plot(vec_time, vect_z)
 plt.show()
 #Parte 2

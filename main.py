@@ -335,6 +335,7 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 
 		aux_u = np.matmul(-K,Xbar)
         
+        
         #Aproximandamente a porcentagem dada por 'Desired Q' * tensão da bateria = 4.656
 		U = aux_u[0,0] + 4.656 #4.8 #N[0,0]*ref + 4
 		vect_aux_u.append(aux_u[0,0])
@@ -343,7 +344,7 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 		cont = 0
 
 	# MIN DE u É 0,6 q é 5% da vbat
-	# max é 95% de 12v 11,4
+	# max é 95% de 12v 11,4     
 	w_dot = A*w + B*w**2 + C*U
 
 	# Integração de w

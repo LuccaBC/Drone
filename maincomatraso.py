@@ -107,6 +107,9 @@ Bc = [[0],[0],[Bm]]
 Cc = [1,0,0]
 Dc = [0]
 
+#Atraso z**-1
+#Ac = [[0,1,0,0],[0,(-2*d_corpo*dz0)/m,(6*b*Ohm0)/m,0],[0,0,Am,0],[0,0,0,0]]
+#Bc = [[0],[0],[Bm],[1]]
 
 #constant_sis = -(6*ct_br*air_density*A*((w0*radius)**2)/m + g) 
 #print("Constante:", constant_sis)
@@ -158,24 +161,28 @@ p_d2 = np.exp(p_c2*Ts)
 print("polos Discretos:\n", np.round(p_d1,4), "e", np.round(p_d2,4))
 
 # Valor inicial - gravidade medida pela IMU ?
-X0 = [[-1], [0], [0]]
+X0 = [[-1], [0], [0],[0]]
 
 #termo de "ruido" do resto da expansão de taylor - ficou bem ruim
-
-mT = np.eye(3)
+aux_c = [0,0,0,0]
+cM = np.array(aux_c)
+mT = np.eye(4)
 #new_ss, mT = ctrl.reachable_form(disc_ss)
 new_ss = disc_ss
+new_ss_aux = np.concatenate((disc_ss.A.A,[[0],[0],[0]]),axis = 1).T
+new_ss_atz_A = np.concatenate((new_ss_aux,[[0],[0],[0],[0]]),axis = 1).T
+new_ss_atz_B = np.concatenate((new_ss.B.T,[[1]]),axis = 1).T
 init_state = np.matmul(mT, X0)
 # colocando os polos
-K = place(new_ss.A, new_ss.B, [p_d1, p_d2, 0.6309566]) # Controlabilidade forma canonica
-PHI = new_ss.A - np.matmul(new_ss.B,K)
+K = place(new_ss_atz_A, new_ss_atz_B, [p_d1, p_d2, 0.6309566, 0.62]) # Controlabilidade forma canonica
+PHI = new_ss_atz_A - np.matmul(new_ss_atz_B,K)
 print('K=', np.round(K, 2))
 
 #step controle sem ref
 final_time = 10
 offset = 0
 print('Matriz nova controle \n', PHI)
-cl_ss = ss(PHI, [[0], [0], [0]], new_ss.C, new_ss.D, Ts)
+cl_ss = ss(PHI, [[0], [0], [0],[0]], [1,0,0,0], new_ss.D, Ts)
 print('A=', np.round(cl_ss.A, 2))
 time_d = linspace(0, int(final_time/Ts)*Ts, int(final_time/Ts)+1)
 yout, tout, xout = initial(cl_ss, time_d, init_state, return_x=True)
@@ -372,5 +379,6 @@ plt.show()
 #tentando acrescentar o esp de estados dos angulos
 #Conforme PDF Lucas de Paula
 l = 0.072456 #metade do lado do quadrado que froma o drone - A no witeboard que usamos
+
 
 

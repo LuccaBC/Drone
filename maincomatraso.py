@@ -329,9 +329,8 @@ for count_t, timestemp in enumerate(vec_time[1:]):
 		aux_xbar1 = np.matmul(disc_ss.B.A,K)
 		aux_xbar2 = np.matmul(L,disc_ss.C.A)
 		aux_xbar3 = -aux_xbar1-aux_xbar2
-		Xbar = np.matmul(disc_ss.A.A+aux_xbar3,Xbar) + L*(z - ref) + auxB*ref
+		Xbar = np.matmul(disc_ss.A.A+aux_xbar3,Xbar) + L*((z + abs(np.random.normal(0, 0.5**2))) - ref) + auxB*ref 
 
-		xbar = Xbar + [[const_x1], [const_x2], [const_x3]]
 
 		aux_u = np.matmul(-K,Xbar)
         

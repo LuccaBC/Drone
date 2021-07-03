@@ -142,16 +142,111 @@ plt.step(Tcc, yout_cc, where='post')
 #plt.step(Tcc, xx[0,:], where='post')
 plt.show()
 
-#controle
-#Mp = 0
+# Variveis
+
+U2 = 0
+U3 = 0
+
+W1 = 0
+W2 = 0
+W3 = 0
+W4 = 0
+W5 = 0
+W6 = 0
+
+erro_phi = 0
+sum_erro_phi = 0
+diff_erro_phi = 0
+
+erro_theta = 0
+sum_erro_theta = 0
+diff_erro_theta = 0
+
+theta = 0.1
+theta_dot = 0
+theta_2dot = 0
+
+phi = 0.1
+phi_dot = 0
+phi_2dot = 0
+
+cont = 0
+
+vect_phi = [0]
+vect_theta = [0]
+vect_U2 = [0]
+vect_U3 = [0]
+vect_W = [0]
+K_fax = d_motor
+K_fay = d_motor
+Wr = Ohm0
+
+ref = 0
+
+P = 0.01
+I = 0.0
+D = 0.0
+
+U1 = Ohm0
+
+# Constantes de tempo 
+tf = 10
+timestep = 0.001
+Ts = 0.02
+vec_time = np.linspace(0, tf, int(tf/timestep)+1)
+vec_time_plot = np.linspace(0, tf, int(tf/Ts))
+
+for count_t, timestemp in enumerate(vec_time[1:]):
+	if cont == 20:
+		# Controle
+
+		erro_phi_anterior = erro_phi
+		erro_phi = ref - phi
+		sum_erro_phi += erro_phi
+		diff_erro_phi = erro_phi - erro_phi_anterior
+
+		erro_theta_anterior = erro_theta
+		erro_theta = ref - theta
+		sum_erro_theta += erro_theta
+		diff_erro_theta = erro_theta - erro_theta_anterior
+
+		U2 = P*erro_phi + I*sum_erro_phi + D*diff_erro_phi
+		U3 = P*erro_theta + I*sum_erro_theta + D*diff_erro_theta
+
+		vect_U2.append(U2)
+		vect_U3.append(U3)
+
+		# Motores
+
+		W1 = 1/(b*l)*(l*U1+2*U2)
+		W2 = 1/(b*l)*(l*U1+2*U2 - np.sqrt(3)*U3)
+		W3 = 1/(b*l)*(l*U1-2*U2 - np.sqrt(3)*U3)
+		W4 = 1/(b*l)*(l*U1-2*U2)
+		W5 = 1/(b*l)*(l*U1-2*U2 + np.sqrt(3)*U3)
+		W6 = 1/(b*l)*(l*U1+2*U2 + np.sqrt(3)*U3)
+
+		vect_W.append([W1,W2,W3,W4,W5,W6])
+		cont = 0
+
+	# Sistema de Angulos
+
+	phi_2dot = (-K_fax*phi_dot**2 - J*Wr*theta_dot + b*l*(-W2 + W5 + 0.5*(-W1-W3+W4+W6)))
+
+	theta_2dot = (-K_fay*theta_dot**2 - J*Wr*theta_dot + b*l*np.sqrt(3)*0.5*(-W1+W3+W4-W6))
 
 
+	phi_dot += phi_2dot*timestep
+	phi += phi_dot*timestep
 
+	theta_dot += theta_2dot*timestep
+	theta += theta_dot*timestep
 
+	vect_theta.append(theta)
+	vect_phi.append(phi)
+	cont += 1 
 
-
-
-
+plt.plot(vec_time_plot,vect_U2,vec_time_plot, vect_U3)
+plt.show()
 
 
 
